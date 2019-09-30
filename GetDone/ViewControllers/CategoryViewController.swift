@@ -8,8 +8,9 @@
 
 import UIKit
 import CoreData
+import ChameleonFramework
 
-class CategoryViewController: UITableViewController {
+class CategoryViewController: SwipeTableViewController {
     
     // Instance variables
     var categoryArray = [Category]()
@@ -17,26 +18,33 @@ class CategoryViewController: UITableViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        // hardcoding some data
         loadCategories()
+        tableView.separatorStyle = .none
        
     }
-    // Mark: TableView data source methods
+    // Mark: - TableView data source methods
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return categoryArray.count
     }
     
+    
+    // Mark: - TableView delegate methods
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "CategoryCell", for: indexPath)
+        let cell = super.tableView(tableView, cellForRowAt: indexPath)
         let category = categoryArray[indexPath.row]
         cell.textLabel?.text = category.name
+        guard let categoryColor = UIColor.init(hexString: category.color!) else { fatalError() }
+        cell.backgroundColor = categoryColor
+        cell.textLabel?.textColor = ContrastColorOf(categoryColor, returnFlat: true)
+        
         return cell
     }
     
-    // Mark: TableView delegate methods
+    
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         performSegue(withIdentifier: "goToTodoItems", sender: self)
     }
+    
     
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         let destinationVC = segue.destination as! TodoListViewController
@@ -64,14 +72,25 @@ class CategoryViewController: UITableViewController {
         tableView.reloadData()
     }
     
+    override func updateDataModel(at indexPath: IndexPath) {
+        context.delete(categoryArray[indexPath.row])
+        do {
+            try context.save()
+        } catch {
+            print("Error deleting cateogry \(error)")
+        }
+        categoryArray.remove(at: indexPath.row)
+    }
+    
     // Mark: Add new categories
     @IBAction func addButtonPressed(_ sender: UIBarButtonItem) {
         // Local variable to store alert text field contents
         var textField = UITextField()
         let alert = UIAlertController(title: "Add new category", message: "", preferredStyle: .alert)
         let action = UIAlertAction(title: "Add Category", style: .default) { (action) in
-            var newCategory = Category(context: self.context)
+            let newCategory = Category(context: self.context)
             newCategory.name = textField.text
+            newCategory.color = UIColor.randomFlat.hexValue()
             self.categoryArray.append(newCategory)
             self.saveCategories()
             self.tableView.reloadData()
